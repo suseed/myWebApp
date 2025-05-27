@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>인터랙티브 회의록 양식</title>
+  <style>
+    body {
+      font-family: 'Pretendard', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f0f4f8;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .container {
+      display: flex;
+      flex: 1;
+      padding: 2rem;
+      gap: 2rem;
+    }
+    .form-section, .output-section {
+      flex: 1;
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      overflow-y: auto;
+    }
+    h2 {
+      margin-top: 0;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: 600;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.25rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    .output-section {
+      background-color: #fefefe;
+    }
+    .output-box {
+      font-family: 'Pretendard', sans-serif;
+      background: #ffffff;
+      padding: 2rem;
+      border-radius: 12px;
+      border: 1px solid #ddd;
+      min-height: 300px;
+    }
+    .report-field {
+      margin-bottom: 1.5rem;
+    }
+    .report-field h3 {
+      margin: 0 0 0.5rem;
+      font-size: 1.1rem;
+      color: #333;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 0.25rem;
+    }
+    .report-field p {
+      margin: 0;
+      white-space: pre-wrap;
+      color: #555;
+    }
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 1rem;
+      padding: 1rem 2rem;
+      background: #ffffff;
+      border-top: 1px solid #ddd;
+    }
+    .buttons button {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #4a90e2;
+      color: white;
+    }
+    .buttons button:hover {
+      background: #357abd;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="form-section">
+      <h2>회의 정보 입력</h2>
+      <label for="date">날짜</label>
+      <input type="date" id="date">
+
+      <label for="attendees">참석자</label>
+      <input type="text" id="attendees" placeholder="예: 홍길동, 김철수">
+
+      <label for="agenda">주요 안건</label>
+      <textarea id="agenda" rows="3" placeholder="이번 회의의 주요 안건을 입력하세요."></textarea>
+
+      <label for="discussion">논의 내용</label>
+      <textarea id="discussion" rows="4" placeholder="논의된 주요 내용을 입력하세요."></textarea>
+
+      <label for="action">조치 사항</label>
+      <textarea id="action" rows="3" placeholder="후속 조치 및 담당자 정보를 입력하세요."></textarea>
+
+      <label for="jsonUpload">📥 JSON 파일 업로드</label>
+      <input type="file" id="jsonUpload" accept="application/json">
+    </div>
+
+    <div class="output-section">
+      <h2 id="report-title">회의록</h2>
+      <div class="output-box" id="report"></div>
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button id="printBtn">🖨 인쇄</button>
+    <button id="pdfBtn">📄 PDF 저장</button>
+    <button id="docsBtn">📤 Google Docs로 내보내기</button>
+    <button id="jsonBtn">💾 JSON으로 저장</button>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    function updateReport() {
+      const date = document.getElementById('date').value;
+      const attendees = document.getElementById('attendees').value;
+      const agenda = document.getElementById('agenda').value;
+      const discussion = document.getElementById('discussion').value;
+      const action = document.getElementById('action').value;
+
+      const reportTitle = document.getElementById('report-title');
+      if (date) {
+        const [yyyy, mm, dd] = date.split('-');
+        reportTitle.textContent = `${yyyy}년 ${mm}월 ${dd}일 회의록`;
+      } else {
+        reportTitle.textContent = '회의록';
+      }
+
+      const reportBox = document.getElementById('report');
+      reportBox.innerHTML = `
+        <div class="report-field">
+          <h3>🗓 날짜</h3>
+          <p>${date || ''}</p>
+        </div>
+        <div class="report-field">
+          <h3>👥 참석자</h3>
+          <p>${attendees || ''}</p>
+        </div>
+        <div class="report-field">
+          <h3>📌 주요 안건</h3>
+          <p>${agenda || ''}</p>
+        </div>
+        <div class="report-field">
+          <h3>💬 논의 내용</h3>
+          <p>${discussion || ''}</p>
+        </div>
+        <div class="report-field">
+          <h3>✅ 조치 사항</h3>
+          <p>${action || ''}</p>
+        </div>
+      `;
+    }
+
+    function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const text = document.getElementById('report').innerText;
+      const lines = doc.splitTextToSize(text, 180);
+      doc.text(lines, 15, 20);
+      doc.save("회의록.pdf");
+    }
+
+    function exportToGoogleDocs() {
+      const content = document.getElementById('report').innerText;
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '회의록.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+      alert("Google Docs에서 직접 업로드하려면 다운로드된 텍스트 파일을 Google Docs에 드래그하거나 Google Drive에서 문서를 생성 후 파일을 가져오세요.");
+    }
+
+    function saveAsJSON() {
+      const date = document.getElementById('date').value;
+      const attendees = document.getElementById('attendees').value;
+      const agenda = document.getElementById('agenda').value;
+      const discussion = document.getElementById('discussion').value;
+      const action = document.getElementById('action').value;
+
+      const data = { date, attendees, agenda, discussion, action };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      let filename = '회의록.json';
+      if (date) {
+        const [yyyy, mm, dd] = date.split('-');
+        filename = `${yyyy}년${mm}월${dd}일_회의록.json`;
+      }
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function uploadJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          document.getElementById('date').value = data.date || '';
+          document.getElementById('attendees').value = data.attendees || '';
+          document.getElementById('agenda').value = data.agenda || '';
+          document.getElementById('discussion').value = data.discussion || '';
+          document.getElementById('action').value = data.action || '';
+          updateReport();
+        } catch (err) {
+          alert('JSON 파일 형식이 올바르지 않습니다.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('date').addEventListener('input', updateReport);
+      document.getElementById('attendees').addEventListener('input', updateReport);
+      document.getElementById('agenda').addEventListener('input', updateReport);
+      document.getElementById('discussion').addEventListener('input', updateReport);
+      document.getElementById('action').addEventListener('input', updateReport);
+      document.getElementById('jsonUpload').addEventListener('change', uploadJSON);
+      document.getElementById('pdfBtn').addEventListener('click', downloadPDF);
+      document.getElementById('docsBtn').addEventListener('click', exportToGoogleDocs);
+      document.getElementById('jsonBtn').addEventListener('click', saveAsJSON);
+      document.getElementById('printBtn').addEventListener('click', () => window.print());
+      updateReport();
+    });
+  </script>
+</body>
+</html>
